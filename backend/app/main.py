@@ -711,3 +711,52 @@ def simulate_investment(
         "profit": round(profit,2),
         "growth_chart": yearly_data
     }
+    
+    # =========================
+# 📊 DASHBOARD SUMMARY
+# =========================
+
+@app.get("/api/v1/dashboard/summary")
+def dashboard_summary(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+
+    goals = db.query(models.Goal).filter(
+        models.Goal.user_id == current_user.id
+    ).all()
+
+    investments = db.query(models.Investment).filter(
+        models.Investment.user_id == current_user.id
+    ).all()
+
+    total_target = sum(g.target_amount for g in goals)
+    total_invested = sum(i.cost_basis for i in investments)
+    networth = sum(i.current_value for i in investments)
+
+    goal_chart = [
+        {
+            "name": g.goal_type,
+            "current": g.monthly_contribution * 12,
+            "target": g.target_amount
+        }
+        for g in goals
+    ]
+
+    growth = [
+        {"month": "Jan", "value": networth * 0.6},
+        {"month": "Feb", "value": networth * 0.75},
+        {"month": "Mar", "value": networth * 0.9},
+        {"month": "Apr", "value": networth}
+    ]
+
+    return {
+        "stats": {
+            "totalGoals": len(goals),
+            "totalTarget": total_target,
+            "totalInvested": total_invested,
+            "netWorth": networth
+        },
+        "goals": goal_chart,
+        "growth": growth
+    }

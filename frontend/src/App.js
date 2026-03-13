@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -14,24 +14,35 @@ import Transactions from "./pages/Transactions";
 import Simulation from "./pages/Simulation";
 
 export default function App() {
+  // PDF Milestone 1: Authentication logic
+  const isAuthenticated = !!localStorage.getItem("token");
+
   return (
     <BrowserRouter>
       <Routes>
-
-        <Route path="/" element={<Login />} />
+        {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/register" element={<Register />} />
 
-        <Route path="/simulation" element={
-          <ProtectedRoute>
-            <Simulation />
-          </ProtectedRoute>
-        } />
+        {/* FIX: Redirect "/" to "/dashboard" if logged in, else to "/login".
+            This prevents the "Dashboard click logout" issue.
+        */}
+        <Route 
+          path="/" 
+          element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} 
+        />
 
+        {/* Protected Dashboard Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/simulation" element={
+          <ProtectedRoute>
+            <Simulation />
           </ProtectedRoute>
         } />
 
@@ -70,6 +81,9 @@ export default function App() {
             <Transactions />
           </ProtectedRoute>
         } />
+
+        {/* Catch-all redirect to Dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" />} />
 
       </Routes>
     </BrowserRouter>
