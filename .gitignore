@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+.venv/
+venv/
+
+# Env files
+.env
+.env.*
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+build/
+frontend/build/
+dist/
+
+# Tooling / OS
+.qodo/
+.DS_Store
+Thumbs.db
+
+# Keep backup of nested repo metadata out of root repo
+frontend/.git.frontend.backup/

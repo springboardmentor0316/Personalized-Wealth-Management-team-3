@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wealthtrack
+      POSTGRES_PASSWORD: wealthtrack_pass
+      POSTGRES_DB: wealthtrack
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wealthtrack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (Celery broker) ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Backend ──────────────────────────────────────────────────────
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://wealthtrack:wealthtrack_pass@db:5432/wealthtrack
+      ACCESS_TOKEN_SECRET: change_this_to_a_long_random_secret
+      REFRESH_TOKEN_SECRET: change_this_to_another_long_random_secret
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Celery Worker (nightly price refresh) ───────────────────────────────
+  celery-worker:
+    build: .
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+psycopg://wealthtrack:wealthtrack_pass@db:5432/wealthtrack
+      ACCESS_TOKEN_SECRET: change_this_to_a_long_random_secret
+      REFRESH_TOKEN_SECRET: change_this_to_another_long_random_secret
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - api
+      - redis
+
+  # ── Celery Beat (scheduler) ──────────────────────────────────────────────
+  celery-beat:
+    build: .
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=info
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
